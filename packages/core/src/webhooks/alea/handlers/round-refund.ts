@@ -241,7 +241,19 @@ export async function handleAleaRoundRefund(
     return { status: 'not_found' }
   }
 
-  const pairId = existingEntries[0].pairId
+  const pairIds = Array.from(
+    new Set(
+      existingEntries
+        .map((e) => e.pairId)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0),
+    ),
+  )
+
+  if (pairIds.length === 0) {
+    ctx.logger.info('alea_round_refund_no_pair_ids', { roundId, playerId: round.playerId })
+    return { status: 'not_found' }
+  }
+
   const allTxEntries = await ctx.db
     .select({
       leg: schema.ledgerEntries.leg,
@@ -254,7 +266,7 @@ export async function handleAleaRoundRefund(
       metadata: schema.ledgerEntries.metadata,
     })
     .from(schema.ledgerEntries)
-    .where(eq(schema.ledgerEntries.pairId, pairId))
+    .where(inArray(schema.ledgerEntries.pairId, pairIds))
 
   const reversedEntries: EntrySpec[] = allTxEntries
     .filter((e) => isCoinCurrency(e.currency))
