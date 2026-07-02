@@ -233,7 +233,11 @@ export async function POST(req: NextRequest): Promise<Response> {
       }
 
       if (!isValidUuid) {
-        if (env().NODE_ENV !== 'production' || process.env.ALEA_ENV === 'staging') {
+        const isMockHappyPathId =
+          (env().NODE_ENV !== 'production' || process.env.ALEA_ENV === 'staging') &&
+          bonusId === String(payload.operatorFreeSpin?.gameId)
+
+        if (isMockHappyPathId) {
           // Bypass UUID check and DB lookup entirely in staging/dev since the bonuses table
           // uses UUID primary keys and the promo payout handler does not query the table during credit.
         } else {
@@ -771,9 +775,10 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     if (error instanceof Error && error.name === 'TombstonedRoundError') {
       const code = txType === 'BET' || txType === 'BET_WIN' ? 'BET_DENIED' : 'INVALID_REQUEST'
+      const status = txType === 'BET' || txType === 'BET_WIN' ? 'DENIED' : 'ERROR'
       return NextResponse.json(
         {
-          status: 'ERROR',
+          status,
           code,
           message: 'Round already rolled back',
         },
